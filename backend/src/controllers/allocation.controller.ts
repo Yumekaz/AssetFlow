@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { logActivity, sendNotification } from '../utils/logger';
 
 export const allocateAsset = async (req: AuthRequest, res: Response) => {
   try {
@@ -43,6 +44,9 @@ export const allocateAsset = async (req: AuthRequest, res: Response) => {
       return newAllocation;
     });
 
+    await logActivity(req.user!.id, 'asset.allocated', 'Asset', assetId, { employeeId });
+    await sendNotification(employeeId, 'Asset Assigned', `Asset ${asset.name} has been assigned to you.`, 'Asset', assetId);
+
     res.status(201).json(result);
   } catch (error) {
     console.error('Error allocating asset:', error);
@@ -54,7 +58,7 @@ export const returnAsset = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params; // Allocation ID
 
-    const allocation = await prisma.allocation.findUnique({ where: { id } });
+    const allocation = await prisma.allocation.findUnique({ where: { id }, include: { asset: true } });
     if (!allocation) return res.status(404).json({ error: 'Allocation not found' });
     if (allocation.status === 'Returned') {
       return res.status(400).json({ error: 'Asset already returned' });
@@ -74,12 +78,13 @@ export const returnAsset = async (req: AuthRequest, res: Response) => {
         data: {
           status: 'Available',
           currentHolderId: null,
-          // optionally keep currentDepartmentId or clear it
         }
       });
 
       return updatedAlloc;
     });
+
+    await logActivity(req.user!.id, 'asset.returned', 'Asset', allocation.assetId);
 
     res.json(result);
   } catch (error) {

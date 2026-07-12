@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { logActivity, sendNotification } from '../utils/logger';
 
 export const createBooking = async (req: AuthRequest, res: Response) => {
   try {
@@ -49,6 +50,8 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
         status: 'Pending',
       }
     });
+
+    await logActivity(user.id, 'booking.created', 'Booking', booking.id, { assetId, startTime, endTime });
 
     res.status(201).json(booking);
   } catch (error) {
@@ -103,6 +106,9 @@ export const approveBooking = async (req: AuthRequest, res: Response) => {
       }
     });
 
+    await logActivity(user.id, 'booking.approved', 'Booking', id);
+    await sendNotification(booking.bookedById, 'Booking Confirmed', `Your booking for ${booking.asset.name} has been approved.`, 'Booking', id);
+
     res.json(updatedBooking);
   } catch (error) {
     console.error('Error approving booking:', error);
@@ -137,6 +143,9 @@ export const rejectBooking = async (req: AuthRequest, res: Response) => {
         approvedById: user.id, // recorded as the decider
       }
     });
+
+    await logActivity(user.id, 'booking.rejected', 'Booking', id);
+    await sendNotification(booking.bookedById, 'Booking Rejected', `Your booking for ${booking.asset.name} has been rejected.`, 'Booking', id);
 
     res.json(updatedBooking);
   } catch (error) {

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { logActivity, sendNotification } from '../utils/logger';
 
 export const raiseRequest = async (req: AuthRequest, res: Response) => {
   try {
@@ -25,6 +26,8 @@ export const raiseRequest = async (req: AuthRequest, res: Response) => {
         status: 'Pending',
       }
     });
+
+    await logActivity(user.id, 'maintenance.raised', 'MaintenanceRequest', maintenance.id);
 
     res.status(201).json(maintenance);
   } catch (error) {
@@ -63,6 +66,9 @@ export const approveRequest = async (req: AuthRequest, res: Response) => {
       return updatedReq;
     });
 
+    await logActivity(user.id, 'maintenance.approved', 'MaintenanceRequest', id);
+    await sendNotification(maintenance.raisedById, 'Maintenance Approved', `Your maintenance request for asset ${maintenance.assetId} is approved.`, 'MaintenanceRequest', id);
+
     res.json(result);
   } catch (error) {
     console.error('Error approving maintenance:', error);
@@ -98,6 +104,9 @@ export const resolveRequest = async (req: AuthRequest, res: Response) => {
 
       return updatedReq;
     });
+
+    await logActivity(req.user!.id, 'maintenance.resolved', 'MaintenanceRequest', id);
+    await sendNotification(maintenance.raisedById, 'Maintenance Resolved', `Your maintenance request for asset ${maintenance.assetId} has been resolved.`, 'MaintenanceRequest', id);
 
     res.json(result);
   } catch (error) {

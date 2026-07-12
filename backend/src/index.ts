@@ -10,6 +10,8 @@ import allocationRoutes from './routes/allocation.routes';
 import bookingRoutes from './routes/booking.routes';
 import maintenanceRoutes from './routes/maintenance.routes';
 import auditRoutes from './routes/audit.routes';
+import dashboardRoutes from './routes/dashboard.routes';
+import notificationRoutes from './routes/notification.routes';
 
 dotenv.config();
 
@@ -28,6 +30,8 @@ app.use('/api/allocations', allocationRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/audits', auditRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
