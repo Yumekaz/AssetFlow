@@ -6,11 +6,10 @@ import departmentRoutes from './routes/department.routes';
 import categoryRoutes from './routes/category.routes';
 import employeeRoutes from './routes/employee.routes';
 import assetRoutes from './routes/asset.routes';
-<<<<<<< HEAD
 import allocationRoutes from './routes/allocation.routes';
 import bookingRoutes from './routes/booking.routes';
-=======
->>>>>>> 4f8d915f04a061c58b190d009853885562843600
+import maintenanceRoutes from './routes/maintenance.routes';
+import auditRoutes from './routes/audit.routes';
 
 dotenv.config();
 
@@ -25,11 +24,10 @@ app.use('/api/departments', departmentRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/assets', assetRoutes);
-<<<<<<< HEAD
 app.use('/api/allocations', allocationRoutes);
 app.use('/api/bookings', bookingRoutes);
-=======
->>>>>>> 4f8d915f04a061c58b190d009853885562843600
+app.use('/api/maintenance', maintenanceRoutes);
+app.use('/api/audits', auditRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
