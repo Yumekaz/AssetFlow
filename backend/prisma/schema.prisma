@@ -149,7 +149,8 @@ model Booking {
   department   Department? @relation(fields: [departmentId], references: [id])
   startTime    DateTime
   endTime      DateTime
-  status       String      @default("Upcoming") // Upcoming, Ongoing, Completed, Cancelled
+  status       String      @default("Pending") // Pending, Approved, Rejected, Completed, Cancelled
+  approvedById String?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
