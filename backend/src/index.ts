@@ -5,6 +5,7 @@ import authRoutes from './routes/auth.routes';
 import departmentRoutes from './routes/department.routes';
 import categoryRoutes from './routes/category.routes';
 import employeeRoutes from './routes/employee.routes';
+import assetRoutes from './routes/asset.routes';
 
 dotenv.config();
 
@@ -18,6 +19,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/employees', employeeRoutes);
+app.use('/api/assets', assetRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
