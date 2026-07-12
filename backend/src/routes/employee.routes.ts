@@ -5,10 +5,9 @@ import { authenticateJWT, requireRole } from '../middlewares/auth.middleware';
 const router = Router();
 
 router.use(authenticateJWT);
-router.use(requireRole(['Admin']));
 
-router.get('/', getEmployees);
-router.put('/:id/role', promoteEmployee);
-router.put('/:id/department', assignDepartment);
+router.get('/', requireRole(['Admin', 'Asset Manager']), getEmployees);
+router.put('/:id/role', requireRole(['Admin']), promoteEmployee);
+router.put('/:id/department', requireRole(['Admin']), assignDepartment);
 
 export default router;

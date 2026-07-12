@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { Box, User, Calendar, AlertTriangle, ArrowLeft, RefreshCw, BookOpen, Settings } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Allocation {
   id: string;
@@ -44,9 +45,65 @@ interface Asset {
 export const AssetDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [asset, setAsset] = useState<Asset | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const [showAllocateModal, setShowAllocateModal] = useState(false);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+  const [allocationLoading, setAllocationLoading] = useState(false);
+  const [allocationError, setAllocationError] = useState('');
+
+  const fetchEmployees = async () => {
+    try {
+      const res = await axios.get('/api/employees');
+      setEmployees(res.data);
+      if (res.data.length > 0) {
+        setSelectedEmployeeId(res.data[0].id);
+      }
+    } catch (err) {
+      console.error('Error fetching employees:', err);
+    }
+  };
+
+  const handleAllocate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEmployeeId) return;
+
+    try {
+      setAllocationLoading(true);
+      setAllocationError('');
+      await axios.post('/api/allocations', {
+        assetId: asset?.id,
+        employeeId: selectedEmployeeId,
+      });
+      setShowAllocateModal(false);
+      fetchAssetDetails();
+    } catch (err: any) {
+      console.error('Error allocating asset:', err);
+      setAllocationError(err.response?.data?.error || 'Failed to allocate asset.');
+    } finally {
+      setAllocationLoading(false);
+    }
+  };
+
+  const handleReturn = async () => {
+    const activeAlloc = asset?.allocations.find((a) => a.status === 'Active');
+    if (!activeAlloc) return;
+
+    try {
+      setAllocationLoading(true);
+      await axios.post(`/api/allocations/${activeAlloc.id}/return`);
+      fetchAssetDetails();
+    } catch (err: any) {
+      console.error('Error returning asset:', err);
+      alert(err.response?.data?.error || 'Failed to process return.');
+    } finally {
+      setAllocationLoading(false);
+    }
+  };
 
   const fetchAssetDetails = async () => {
     try {
@@ -194,6 +251,36 @@ export const AssetDetail: React.FC = () => {
             ) : (
               <p className="text-sm text-slate-400 italic">No current active allocation or custody.</p>
             )}
+
+            {/* Direct Allocation Controls for Admin/Asset Manager */}
+            {(user?.role === 'Admin' || user?.role === 'Asset Manager') && !asset.isBookable && (
+              <div className="mt-6 pt-4 border-t border-slate-100 dark:border-white/5">
+                {asset.status === 'Available' && (
+                  <button
+                    onClick={() => {
+                      setShowAllocateModal(true);
+                      fetchEmployees();
+                    }}
+                    className="w-full py-2.5 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl font-bold transition-all shadow-lg shadow-brand-500/20 text-sm cursor-pointer"
+                  >
+                    Allocate Asset
+                  </button>
+                )}
+                {asset.status === 'Allocated' && (
+                  <button
+                    onClick={handleReturn}
+                    disabled={allocationLoading}
+                    className="w-full py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-bold transition-all shadow-lg shadow-rose-500/20 text-sm flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {allocationLoading ? (
+                      <RefreshCw className="animate-spin" size={16} />
+                    ) : (
+                      'Mark as Returned'
+                    )}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -292,6 +379,56 @@ export const AssetDetail: React.FC = () => {
 
         </div>
       </div>
+
+      {/* Allocation Modal */}
+      {showAllocateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="glass-panel w-full max-w-md p-8 rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 shadow-2xl relative">
+            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6">Allocate Asset</h3>
+            <form onSubmit={handleAllocate} className="space-y-6">
+              <div>
+                <label className="block text-sm font-bold text-slate-500 dark:text-white/40 mb-2">Select Employee</label>
+                <select
+                  value={selectedEmployeeId}
+                  onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
+                >
+                  {employees.map((emp) => (
+                    <option key={emp.id} value={emp.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
+                      {emp.name} ({emp.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {allocationError && (
+                <p className="text-xs text-rose-500 font-bold">{allocationError}</p>
+              )}
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAllocateModal(false)}
+                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-800 dark:text-white rounded-xl font-bold transition-all text-sm cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={allocationLoading}
+                  className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-brand-500/20 text-sm flex items-center gap-2 cursor-pointer"
+                >
+                  {allocationLoading ? (
+                    <RefreshCw className="animate-spin" size={16} />
+                  ) : (
+                    'Confirm Allocation'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
