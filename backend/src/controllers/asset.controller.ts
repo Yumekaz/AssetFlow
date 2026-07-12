@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { logActivity } from '../utils/logger';
 
 // Helper to generate the next AF-XXXX tag
 async function generateAssetTag(): Promise<string> {
@@ -60,6 +61,7 @@ export const createAsset = async (req: AuthRequest, res: Response) => {
         status: 'Available', // default state
       },
     });
+    await logActivity(req.user!.id, 'asset.created', 'Asset', asset.id, { assetTag, name });
 
     res.status(201).json(asset);
   } catch (error) {
@@ -217,6 +219,7 @@ export const updateAsset = async (req: AuthRequest, res: Response) => {
         ...(isBookable !== undefined && { isBookable }),
       },
     });
+    await logActivity(req.user!.id, 'asset.updated', 'Asset', updatedAsset.id);
 
     res.json(updatedAsset);
   } catch (error) {
@@ -233,6 +236,7 @@ export const deleteAsset = async (req: AuthRequest, res: Response) => {
     await prisma.asset.delete({
       where: { id },
     });
+    await logActivity(req.user!.id, 'asset.deleted', 'Asset', id);
 
     res.json({ message: 'Asset deleted successfully' });
   } catch (error) {

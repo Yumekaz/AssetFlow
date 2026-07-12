@@ -32,12 +32,25 @@ export const getDashboardKPIs = async (req: AuthRequest, res: Response) => {
       }
     });
 
+    const pendingTransfers = await prisma.transferRequest.count({
+      where: { status: 'Requested' }
+    });
+
+    const upcomingReturns = await prisma.allocation.count({
+      where: {
+        status: 'Active',
+        expectedReturnDate: { gte: new Date() }
+      }
+    });
+
     res.json({
       assetsAvailable,
       assetsAllocated,
       maintenanceCount,
       activeBookings,
       overdueReturns,
+      pendingTransfers,
+      upcomingReturns,
     });
   } catch (error) {
     console.error('Error fetching dashboard KPIs:', error);

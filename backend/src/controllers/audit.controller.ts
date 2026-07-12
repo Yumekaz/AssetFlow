@@ -8,10 +8,13 @@ export const startAudit = async (req: AuthRequest, res: Response) => {
     const user = req.user;
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { name, startDate, endDate, scopeDepartmentId } = req.body;
+    const { name, startDate, endDate, scopeDepartmentId, scopeLocation, auditorIds } = req.body;
 
     if (!name || !startDate || !endDate) {
       return res.status(400).json({ error: 'name, startDate, and endDate are required' });
+    }
+    if (!Array.isArray(auditorIds) || auditorIds.length === 0 || !auditorIds.every((id) => typeof id === 'string')) {
+      return res.status(400).json({ error: 'At least one assigned auditor is required' });
     }
 
     const audit = await prisma.auditCycle.create({
@@ -22,6 +25,8 @@ export const startAudit = async (req: AuthRequest, res: Response) => {
         createdById: user.id,
         status: 'In Progress',
         scopeDepartmentId: scopeDepartmentId || null,
+        scopeLocation: scopeLocation || null,
+        auditorIds: JSON.stringify(auditorIds),
       }
     });
 
@@ -47,12 +52,15 @@ export const scanAssets = async (req: AuthRequest, res: Response) => {
     const audit = await prisma.auditCycle.findUnique({ where: { id } });
     if (!audit) return res.status(404).json({ error: 'Audit cycle not found' });
     if (audit.status !== 'In Progress') return res.status(400).json({ error: 'Audit cycle is closed or not in progress' });
+    const assignedAuditors: string[] = JSON.parse(audit.auditorIds || '[]');
+    if (!assignedAuditors.includes(user.id)) return res.status(403).json({ error: 'Forbidden: You are not assigned to this audit' });
 
     // Find all expected assets in the DB (for a company-wide audit, we fetch all. If scoped, we fetch by scope)
     let whereClause: any = {};
     if (audit.scopeDepartmentId) {
       whereClause.currentDepartmentId = audit.scopeDepartmentId;
     }
+    if (audit.scopeLocation) whereClause.location = audit.scopeLocation;
 
     const expectedAssets = await prisma.asset.findMany({ where: whereClause });
     const scannedAssets = await prisma.asset.findMany({ where: { assetTag: { in: assetTags } } });
@@ -165,6 +173,7 @@ export const closeAudit = async (req: AuthRequest, res: Response) => {
 
 export const getAudits = async (req: AuthRequest, res: Response) => {
   try {
+    const user = req.user!;
     const audits = await prisma.auditCycle.findMany({
       include: {
         createdBy: { select: { id: true, name: true } },
@@ -173,7 +182,8 @@ export const getAudits = async (req: AuthRequest, res: Response) => {
       orderBy: { startDate: 'desc' }
     });
 
-    res.json(audits);
+    if (user.role === 'Admin' || user.role === 'Asset Manager') return res.json(audits);
+    res.json(audits.filter((audit) => JSON.parse(audit.auditorIds || '[]').includes(user.id)));
   } catch (error) {
     console.error('Error fetching audits:', error);
     res.status(500).json({ error: 'Internal server error' });

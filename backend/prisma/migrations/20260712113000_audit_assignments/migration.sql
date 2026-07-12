@@ -1,0 +1,1 @@
+ALTER TABLE "AuditCycle" ADD COLUMN "auditorIds" TEXT NOT NULL DEFAULT '[]';

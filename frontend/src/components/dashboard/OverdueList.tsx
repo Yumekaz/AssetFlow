@@ -39,23 +39,23 @@ export const OverdueList: React.FC = () => {
       <div className="flex-1 overflow-y-auto custom-scrollbar p-2 bg-white dark:bg-transparent">
         <div className="flex flex-col gap-2">
           {overdueItems.map((item) => (
-            <div key={item.id} className="group p-4 rounded-2xl flex items-center justify-between hover:bg-slate-50 dark:hover:bg-white/5 transition-all duration-300 cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-white/10">
-              <div className="flex-1 min-w-0 pr-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="font-semibold text-slate-800 dark:text-white truncate">{item.assetName}</p>
-                  <span className="text-xs font-mono text-slate-500 bg-slate-100 dark:text-white/30 dark:bg-white/5 px-2 py-0.5 rounded-md">{item.assetTag}</span>
+            <div key={item.id} className="group p-4 rounded-2xl flex flex-col gap-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-all duration-300 cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-white/10">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <p className="font-semibold text-slate-800 dark:text-white break-words">{item.assetName}</p>
+                    <span className="shrink-0 text-xs font-mono text-slate-500 bg-slate-100 dark:text-white/30 dark:bg-white/5 px-2 py-0.5 rounded-md">{item.assetTag}</span>
+                  </div>
+                  <p className="text-sm text-slate-500 dark:text-white/50 flex items-center gap-1.5 break-words">
+                    <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                    Holder: {item.employee}
+                  </p>
                 </div>
-                <p className="text-sm text-slate-500 dark:text-white/50 truncate flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                  Holder: {item.employee}
-                </p>
+                <ChevronRight size={18} className="shrink-0 mt-1 text-slate-300 dark:text-white/20 group-hover:text-slate-500 dark:group-hover:text-white/60 group-hover:translate-x-1 transition-all" />
               </div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1.5 text-rose-600 bg-rose-50 border-rose-200 dark:text-rose-400 dark:bg-rose-500/10 border dark:border-rose-500/20 px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide whitespace-nowrap shadow-sm dark:shadow-[0_0_10px_rgba(225,29,72,0.1)]">
-                  <Clock size={14} />
-                  {item.daysOverdue}D OVERDUE
-                </div>
-                <ChevronRight size={18} className="text-slate-300 dark:text-white/20 group-hover:text-slate-500 dark:group-hover:text-white/60 group-hover:translate-x-1 transition-all" />
+              <div className="flex items-center gap-1.5 self-start text-rose-600 bg-rose-50 border-rose-200 dark:text-rose-400 dark:bg-rose-500/10 border dark:border-rose-500/20 px-3 py-1.5 rounded-xl text-xs font-bold tracking-wide whitespace-nowrap shadow-sm dark:shadow-[0_0_10px_rgba(225,29,72,0.1)]">
+                <Clock size={14} />
+                {item.daysOverdue}D OVERDUE
               </div>
             </div>
           ))}

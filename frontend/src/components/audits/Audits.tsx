@@ -31,6 +31,7 @@ export const Audits: React.FC = () => {
   const [auditName, setAuditName] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [auditorIds, setAuditorIds] = useState('');
   
   // Scan Modal States
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
@@ -58,17 +59,20 @@ export const Audits: React.FC = () => {
 
   const handleStartAudit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auditName || !startDate || !endDate) return;
+    const assigned = auditorIds.split(/[\s,]+/).map(id => id.trim()).filter(Boolean);
+    if (!auditName || !startDate || !endDate || assigned.length === 0) return;
     try {
       await axios.post('/api/audits', {
         name: auditName,
         startDate,
-        endDate
+        endDate,
+        auditorIds: assigned
       });
       setIsStartModalOpen(false);
       setAuditName('');
       setStartDate('');
       setEndDate('');
+      setAuditorIds('');
       fetchAudits();
     } catch (error) {
       alert('Failed to start new audit cycle.');
@@ -124,7 +128,7 @@ export const Audits: React.FC = () => {
     });
   };
 
-  const isAdminOrManager = user?.role === 'Admin' || user?.role === 'Asset Manager';
+  const isAdmin = user?.role === 'Admin';
 
   return (
     <div className="p-6 md:p-10 animate-in fade-in duration-500 max-w-7xl mx-auto">
@@ -140,7 +144,7 @@ export const Audits: React.FC = () => {
           <p className="text-slate-500 dark:text-white/50 mt-2 font-medium">Manage organization-wide inventory scanning and compliance.</p>
         </div>
         
-        {isAdminOrManager && (
+        {isAdmin && (
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsStartModalOpen(true)}
@@ -223,9 +227,9 @@ export const Audits: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {audit.status === 'In Progress' && isAdminOrManager && (
+                        {audit.status === 'In Progress' && (
                           <>
-                            <button
+                            {isAdmin && <button
                               onClick={() => {
                                 setSelectedAuditId(audit.id);
                                 setIsScanModalOpen(true);
@@ -233,7 +237,7 @@ export const Audits: React.FC = () => {
                               className="px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-600 rounded-lg text-xs font-bold transition-all flex items-center gap-1"
                             >
                               <Upload size={12} /> Scan CSV
-                            </button>
+                            </button>}
                             <button
                               onClick={() => handleCloseAudit(audit.id)}
                               className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold transition-all flex items-center gap-1"
@@ -312,6 +316,18 @@ export const Audits: React.FC = () => {
                     className="w-full bg-slate-100 dark:bg-[#111] rounded-2xl py-3 px-4 outline-none border border-transparent focus:border-brand-500 text-sm"
                   />
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase">Assigned auditor IDs</label>
+                <textarea
+                  required
+                  placeholder="Paste one or more employee IDs, separated by commas"
+                  value={auditorIds}
+                  onChange={e => setAuditorIds(e.target.value)}
+                  className="w-full bg-slate-100 dark:bg-[#111] rounded-2xl py-3 px-4 outline-none border border-transparent focus:border-brand-500 text-sm font-mono"
+                  rows={2}
+                />
+                <p className="text-xs text-slate-400">Only these assigned users can submit audit scans.</p>
               </div>
               <button
                 type="submit"

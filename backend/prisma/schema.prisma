@@ -185,6 +185,7 @@ model AuditCycle {
   status             String      @default("Draft") // Draft, In Progress, Closed
   createdById        String
   createdBy          Employee    @relation("AuditCycleCreatedBy", fields: [createdById], references: [id])
+  auditorIds         String      @default("[]") // JSON array of assigned employee IDs
 
   auditItems         AuditItem[]
 }

@@ -5,11 +5,10 @@ import { authenticateJWT, requireRole } from '../middlewares/auth.middleware';
 const router = Router();
 
 router.use(authenticateJWT);
-router.use(requireRole(['Admin', 'Asset Manager']));
 
 router.get('/', getAudits);
-router.post('/', startAudit);
+router.post('/', requireRole(['Admin']), startAudit);
 router.post('/:id/scan', scanAssets);
-router.put('/:id/close', closeAudit);
+router.put('/:id/close', requireRole(['Admin']), closeAudit);
 
 export default router;
