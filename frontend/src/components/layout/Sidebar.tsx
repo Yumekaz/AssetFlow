@@ -1,12 +1,17 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Box, Calendar, Wrench, ShieldCheck, Settings } from 'lucide-react';
+import { LayoutDashboard, Box, Calendar, Wrench, ShieldCheck, Settings, Users } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const Sidebar: React.FC = () => {
+  const { user } = useAuth();
+  const initials = user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U';
+
   const navItems = [
     { name: 'Overview', icon: LayoutDashboard, path: '/' },
     { name: 'Assets', icon: Box, path: '/assets' },
     { name: 'Bookings', icon: Calendar, path: '/bookings' },
+    { name: 'Employees', icon: Users, path: '/employees' },
     { name: 'Maintenance', icon: Wrench, path: '/maintenance' },
     { name: 'Audits', icon: ShieldCheck, path: '/audits' },
   ];
@@ -67,11 +72,11 @@ export const Sidebar: React.FC = () => {
         
         <div className="mt-6 flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-colors cursor-pointer">
           <div className="w-10 h-10 rounded-full bg-brand-100 dark:bg-gradient-to-br dark:from-brand-600 dark:to-accent-600 flex items-center justify-center text-brand-700 dark:text-white font-bold text-sm shadow-inner">
-            JD
+            {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">John Doe</p>
-            <p className="text-xs text-brand-600 dark:text-brand-400 truncate">Administrator</p>
+            <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{user?.name || 'User'}</p>
+            <p className="text-xs text-brand-600 dark:text-brand-400 truncate">{user?.role || 'Employee'}</p>
           </div>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { Link, useLocation } from 'react-router-dom';
 import { Search, Filter, Plus, Box, Laptop, Video, Briefcase, Activity } from 'lucide-react';
 import { CreateAssetModal } from './CreateAssetModal';
 
@@ -19,6 +20,14 @@ export const Assets: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('openCreate') === 'true') {
+      setIsModalOpen(true);
+    }
+  }, [location.search]);
 
   const fetchAssets = async () => {
     try {
@@ -154,9 +163,9 @@ export const Assets: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-sm font-bold text-brand-600 dark:text-brand-400 hover:text-brand-800 dark:hover:text-brand-300 transition-colors">
+                      <Link to={`/assets/${asset.id}`} className="text-sm font-bold text-brand-600 dark:text-brand-400 hover:text-brand-800 dark:hover:text-brand-300 transition-colors inline-block">
                         View Details
-                      </button>
+                      </Link>
                     </td>
                   </tr>
                 ))

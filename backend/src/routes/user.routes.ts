@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { updateRole } from '../controllers/user.controller';
-import { authenticate, authorizeRoles } from '../middlewares/auth.middleware';
+import { authenticateJWT, requireRole } from '../middlewares/auth.middleware';
 
 const router = Router();
 
-router.put('/:id/role', authenticate, authorizeRoles('Admin'), updateRole);
+router.put('/:id/role', authenticateJWT, requireRole(['Admin']), updateRole);
 
 export default router;
+

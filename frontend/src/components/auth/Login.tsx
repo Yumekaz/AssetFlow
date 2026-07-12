@@ -2,13 +2,34 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Box, Lock, Mail, ArrowRight, Activity } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { Link } from 'react-router-dom';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('admin@assetflow.com');
   const [password, setPassword] = useState('password123');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
   const { login } = useAuth();
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError('Please enter your email address first.');
+      return;
+    }
+    setError('');
+    setSuccess('');
+    setForgotLoading(true);
+    try {
+      const res = await axios.post('/api/auth/forgot-password', { email });
+      setSuccess(res.data?.message || 'Password reset instructions sent to your email.');
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to send password reset request.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +73,13 @@ export const Login: React.FC = () => {
               </div>
             )}
 
+            {success && (
+              <div className="p-4 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-2xl flex items-start gap-3">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 mt-1.5 animate-ping"></div>
+                <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">{success}</p>
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-600 dark:text-white/60 uppercase tracking-wider pl-1">Email Address</label>
               <div className="relative group">
@@ -80,6 +108,16 @@ export const Login: React.FC = () => {
                   required
                 />
               </div>
+              <div className="text-right mt-1">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={forgotLoading}
+                  className="text-xs font-bold text-brand-600 dark:text-brand-400 hover:underline"
+                >
+                  {forgotLoading ? 'Sending link...' : 'Forgot Password?'}
+                </button>
+              </div>
             </div>
 
             <button
@@ -96,7 +134,14 @@ export const Login: React.FC = () => {
             
           </form>
           
-          <div className="mt-8 text-center">
+          <div className="mt-6 flex justify-between items-center text-sm">
+            <span className="text-slate-500 dark:text-white/40">Don't have an account?</span>
+            <Link to="/signup" className="font-bold text-brand-600 dark:text-brand-400 hover:underline">
+              Sign Up
+            </Link>
+          </div>
+
+          <div className="mt-6 text-center">
             <p className="text-sm text-slate-500 dark:text-white/40">
               Demo Credentials: <br/>
               <span className="font-mono text-xs bg-slate-200 dark:bg-white/10 px-2 py-1 rounded mt-1 inline-block">admin@assetflow.com / password123</span>

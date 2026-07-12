@@ -4,16 +4,17 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 
 export const getDashboardKPIs = async (req: AuthRequest, res: Response) => {
   try {
-    // In a real multi-tenant app, these would be scoped.
-    // We can also scope them by role (e.g. Dept Head sees only their dept's stats)
-    // but for the hackathon we'll just compute org-wide stats for simplicity.
+    const user = req.user!;
+    const assetScope = user.role === 'Department Head'
+      ? { OR: [{ currentDepartmentId: user.departmentId }, { currentHolder: { departmentId: user.departmentId } }] }
+      : user.role === 'Employee' ? { currentHolderId: user.id } : {};
     
     const assetsAvailable = await prisma.asset.count({
-      where: { status: 'Available' }
+      where: { ...assetScope, status: 'Available' }
     });
 
     const assetsAllocated = await prisma.asset.count({
-      where: { status: 'Allocated' }
+      where: { ...assetScope, status: 'Allocated' }
     });
 
     const maintenanceCount = await prisma.maintenanceRequest.count({

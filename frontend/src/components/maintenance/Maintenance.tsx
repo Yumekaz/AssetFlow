@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { Wrench, Search, Filter, Plus, Activity, AlertTriangle, CheckCircle } from 'lucide-react';
 import { CreateMaintenanceModal } from './CreateMaintenanceModal';
@@ -18,6 +19,14 @@ export const Maintenance: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('openCreate') === 'true') {
+      setIsModalOpen(true);
+    }
+  }, [location.search]);
 
   const fetchMaintenance = async () => {
     try {

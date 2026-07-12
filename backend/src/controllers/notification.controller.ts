@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
 import prisma from '../utils/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { sseEmitter } from '../utils/logger';
@@ -63,6 +64,13 @@ export const getActivityLogs = async (req: AuthRequest, res: Response) => {
 };
 
 export const subscribeEvents = (req: Request, res: Response) => {
+  const token = typeof req.query.token === 'string' ? req.query.token : undefined;
+  if (!token) return res.status(401).json({ error: 'Authorization required' });
+  try {
+    jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+  } catch {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');

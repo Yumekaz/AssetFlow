@@ -3,11 +3,14 @@ import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { Dashboard } from './components/dashboard/Dashboard';
 import { Login } from './components/auth/Login';
+import { Signup } from './components/auth/Signup';
 import { Assets } from './components/assets/Assets';
+import { AssetDetail } from './components/assets/AssetDetail';
 import { Bookings } from './components/bookings/Bookings';
 import { Maintenance } from './components/maintenance/Maintenance';
 import { Audits } from './components/audits/Audits';
 import { Settings } from './components/settings/Settings';
+import { Employees } from './components/employees/Employees';
 import { useAuth } from './contexts/AuthContext';
 
 function AppContent() {
@@ -19,6 +22,7 @@ function AppContent() {
     return (
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );
@@ -34,10 +38,12 @@ function AppContent() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/assets" element={<Assets />} />
+            <Route path="/assets/:id" element={<AssetDetail />} />
             <Route path="/bookings" element={<Bookings />} />
             <Route path="/maintenance" element={<Maintenance />} />
             <Route path="/audits" element={<Audits />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/employees" element={<Employees />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

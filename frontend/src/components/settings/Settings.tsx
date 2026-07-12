@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings as SettingsIcon, User, Bell, Shield, Key, Moon, Globe } from 'lucide-react';
+import { Settings as SettingsIcon, User, Bell, Shield, Globe } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const Settings: React.FC = () => {

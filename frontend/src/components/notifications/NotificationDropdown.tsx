@@ -56,8 +56,18 @@ export const NotificationDropdown: React.FC = () => {
     };
     
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 10000);
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchNotifications, 60000);
+
+    const eventSource = new EventSource('/api/notifications/events');
+    eventSource.onmessage = (event) => {
+      console.log('Live notification event received:', event.data);
+      fetchNotifications();
+    };
+
+    return () => {
+      clearInterval(interval);
+      eventSource.close();
+    };
   }, []);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;

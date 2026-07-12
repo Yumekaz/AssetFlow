@@ -27,7 +27,13 @@ export const CreateBookingModal: React.FC<CreateBookingModalProps> = ({ isOpen, 
 
   useEffect(() => {
     if (isOpen) {
-      axios.get('/api/assets').then(res => setAssets(res.data)).catch(console.error);
+      axios.get('/api/assets')
+        .then(res => {
+          if (Array.isArray(res.data)) {
+            setAssets(res.data.filter((a: any) => a.isBookable));
+          }
+        })
+        .catch(console.error);
     }
   }, [isOpen]);
 

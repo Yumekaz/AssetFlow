@@ -1,13 +1,14 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { logActivity } from '../utils/logger';
 
 export const startAudit = async (req: AuthRequest, res: Response) => {
   try {
     const user = req.user;
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { name, startDate, endDate } = req.body;
+    const { name, startDate, endDate, scopeDepartmentId } = req.body;
 
     if (!name || !startDate || !endDate) {
       return res.status(400).json({ error: 'name, startDate, and endDate are required' });
@@ -20,6 +21,7 @@ export const startAudit = async (req: AuthRequest, res: Response) => {
         endDate: new Date(endDate),
         createdById: user.id,
         status: 'In Progress',
+        scopeDepartmentId: scopeDepartmentId || null,
       }
     });
 
@@ -56,17 +58,23 @@ export const scanAssets = async (req: AuthRequest, res: Response) => {
     const scannedAssets = await prisma.asset.findMany({ where: { assetTag: { in: assetTags } } });
     const scannedAssetIds = new Set(scannedAssets.map(a => a.id));
 
+    // Clear existing items in this audit cycle to prevent duplicates on re-scan
+    await prisma.auditItem.deleteMany({
+      where: { auditCycleId: audit.id }
+    });
+
     const auditItemsToCreate = [];
 
     for (const expected of expectedAssets) {
       const isScanned = scannedAssetIds.has(expected.id);
+      const scannedAsset = scannedAssets.find(a => a.id === expected.id);
       
       auditItemsToCreate.push({
         auditCycleId: audit.id,
         assetId: expected.id,
         auditorId: user.id,
-        result: isScanned ? 'Verified' : 'Missing',
-        notes: isScanned ? 'Scanned successfully' : 'Not found in bulk scan',
+        result: isScanned ? (scannedAsset?.condition === 'Damaged' ? 'Damaged' : 'Verified') : 'Missing',
+        notes: isScanned ? `Scanned successfully. Condition: ${scannedAsset?.condition}` : 'Not found in bulk scan',
       });
     }
 
@@ -86,16 +94,69 @@ export const closeAudit = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const audit = await prisma.auditCycle.findUnique({ where: { id } });
+    const audit = await prisma.auditCycle.findUnique({ 
+      where: { id },
+      include: { auditItems: true }
+    });
     if (!audit) return res.status(404).json({ error: 'Audit cycle not found' });
     if (audit.status === 'Closed') return res.status(400).json({ error: 'Audit is already closed' });
 
-    const updatedAudit = await prisma.auditCycle.update({
-      where: { id },
-      data: { status: 'Closed' }
+    const discrepancies = audit.auditItems.filter(item => item.result === 'Missing' || item.result === 'Damaged');
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updatedAudit = await tx.auditCycle.update({
+        where: { id },
+        data: { status: 'Closed' },
+        include: {
+          createdBy: { select: { id: true, name: true } },
+          auditItems: {
+            include: {
+              asset: { select: { id: true, name: true, assetTag: true } }
+            }
+          }
+        }
+      });
+
+      for (const item of discrepancies) {
+        let newStatus = 'Available';
+        if (item.result === 'Missing') {
+          newStatus = 'Lost';
+        } else if (item.result === 'Damaged') {
+          newStatus = 'Under Maintenance';
+          
+          await tx.maintenanceRequest.create({
+            data: {
+              assetId: item.assetId,
+              raisedById: req.user!.id,
+              issueDescription: `Auto-generated via Audit: Asset reported as Damaged. Notes: ${item.notes || 'No details'}`,
+              priority: 'High',
+              status: 'Pending'
+            }
+          });
+        }
+
+        await tx.asset.update({
+          where: { id: item.assetId },
+          data: { status: newStatus }
+        });
+      }
+
+      return updatedAudit;
     });
 
-    res.json(updatedAudit);
+    await logActivity(req.user!.id, 'audit.closed', 'AuditCycle', id, {
+      totalItems: audit.auditItems.length,
+      discrepanciesCount: discrepancies.length
+    });
+
+    res.json({
+      audit: result,
+      discrepancyReport: {
+        totalItems: result.auditItems.length,
+        discrepanciesCount: discrepancies.length,
+        discrepancies: result.auditItems.filter(item => item.result === 'Missing' || item.result === 'Damaged')
+      }
+    });
   } catch (error) {
     console.error('Error closing audit:', error);
     res.status(500).json({ error: 'Internal server error' });

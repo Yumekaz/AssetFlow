@@ -3,8 +3,11 @@ import axios from 'axios';
 import { Box, Wrench, Calendar, Activity } from 'lucide-react';
 import { KPICard } from './KPICard';
 import { OverdueList } from './OverdueList';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const Dashboard: React.FC = () => {
+  const { user, token } = useAuth();
   const [kpiData, setKpiData] = useState({
     assetsAvailable: 0,
     assetsAllocated: 0,
@@ -26,13 +29,7 @@ export const Dashboard: React.FC = () => {
           throw new Error('Invalid API response');
         }
       } catch (error) {
-        setKpiData({
-          assetsAvailable: 142,
-          assetsAllocated: 89,
-          maintenanceCount: 12,
-          activeBookings: 34,
-          overdueReturns: 5
-        });
+        console.error('Failed to load dashboard KPIs', error);
       } finally {
         setLoading(false);
       }
@@ -44,21 +41,21 @@ export const Dashboard: React.FC = () => {
     const interval = setInterval(fetchKPIs, 60000);
 
     // Server-Sent Events for Live Updates
-    const eventSource = new EventSource('/api/notifications/events');
-    eventSource.onmessage = (event) => {
+    const eventSource = token ? new EventSource(`/api/notifications/events?token=${encodeURIComponent(token)}`) : null;
+    eventSource?.addEventListener('message', (event) => {
       console.log('Received live update:', event.data);
       // Re-fetch data instantly when a backend activity occurs
       fetchKPIs();
-    };
-    eventSource.onerror = (err) => {
+    });
+    eventSource?.addEventListener('error', (err) => {
       console.error('SSE Error:', err);
-    };
+    });
 
     return () => {
       clearInterval(interval);
-      eventSource.close();
+      eventSource?.close();
     };
-  }, []);
+  }, [token]);
 
   return (
     <div className="p-10 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700">
@@ -74,9 +71,27 @@ export const Dashboard: React.FC = () => {
           <p className="text-slate-500 dark:text-white/40 mt-3 text-lg font-medium tracking-wide">Real-time telemetry and resource allocation.</p>
         </div>
         
-        <div className="flex items-center gap-3 text-sm text-brand-700 dark:text-brand-300 bg-brand-50 dark:bg-brand-500/10 border border-brand-200 dark:border-brand-500/20 px-5 py-2.5 rounded-2xl font-bold tracking-wide shadow-sm dark:shadow-[0_0_20px_rgba(99,102,241,0.15)] backdrop-blur-md">
-          <Activity size={18} className="animate-pulse" />
-          Live updates active
+        <div className="flex items-center gap-3">
+          {(user?.role === 'Admin' || user?.role === 'Asset Manager') && (
+            <Link
+              to="/assets?openCreate=true"
+              className="px-5 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl font-bold text-sm shadow-md transition-all shadow-brand-500/25"
+            >
+              Register Asset
+            </Link>
+          )}
+          <Link
+            to="/bookings?openCreate=true"
+            className="px-5 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-800 dark:text-white rounded-2xl border border-slate-200 dark:border-white/10 font-bold text-sm transition-all"
+          >
+            Book Resource
+          </Link>
+          <Link
+            to="/maintenance?openCreate=true"
+            className="px-5 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-800 dark:text-white rounded-2xl border border-slate-200 dark:border-white/10 font-bold text-sm transition-all"
+          >
+            Report Issue
+          </Link>
         </div>
       </div>
 

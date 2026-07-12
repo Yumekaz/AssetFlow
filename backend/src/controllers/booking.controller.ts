@@ -3,6 +3,14 @@ import prisma from '../utils/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { logActivity, sendNotification } from '../utils/logger';
 
+const activeBookingStatuses = ['Pending', 'Approved', 'Upcoming', 'Ongoing'];
+
+const refreshBookingStatuses = async () => {
+  const now = new Date();
+  await prisma.booking.updateMany({ where: { status: { in: ['Pending', 'Approved', 'Upcoming'] }, startTime: { lte: now }, endTime: { gt: now } }, data: { status: 'Ongoing' } });
+  await prisma.booking.updateMany({ where: { status: { in: ['Pending', 'Approved', 'Upcoming', 'Ongoing'] }, endTime: { lte: now } }, data: { status: 'Completed' } });
+};
+
 export const createBooking = async (req: AuthRequest, res: Response) => {
   try {
     const user = req.user;
@@ -31,7 +39,7 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
       const overlappingBooking = await tx.booking.findFirst({
         where: {
           assetId,
-          status: 'Approved',
+          status: { in: activeBookingStatuses },
           AND: [
             { startTime: { lt: end } },
             { endTime: { gt: start } }
@@ -171,6 +179,7 @@ export const rejectBooking = async (req: AuthRequest, res: Response) => {
 
 export const getBookings = async (req: AuthRequest, res: Response) => {
   try {
+    await refreshBookingStatuses();
     const user = req.user;
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
@@ -201,6 +210,101 @@ export const getBookings = async (req: AuthRequest, res: Response) => {
     res.json(bookings);
   } catch (error) {
     console.error('Error fetching bookings:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const cancelBooking = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = req.user!;
+
+    const booking = await prisma.booking.findUnique({ where: { id } });
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+
+    // Authorization: Booker, Admin, or Dept Head (if same department)
+    if (user.role === 'Employee' && booking.bookedById !== user.id) {
+      return res.status(403).json({ error: 'Forbidden: Cannot cancel another user\'s booking' });
+    }
+
+    const updatedBooking = await prisma.booking.update({
+      where: { id },
+      data: { status: 'Cancelled' }
+    });
+
+    await logActivity(user.id, 'booking.cancelled', 'Booking', id);
+    res.json(updatedBooking);
+  } catch (error) {
+    console.error('Error cancelling booking:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const rescheduleBooking = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { startTime, endTime } = req.body;
+    const user = req.user!;
+
+    if (!startTime || !endTime) {
+      return res.status(400).json({ error: 'startTime and endTime are required' });
+    }
+
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+
+    if (start >= end) {
+      return res.status(400).json({ error: 'endTime must be after startTime' });
+    }
+
+    const booking = await prisma.booking.findUnique({ where: { id } });
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+
+    if (user.role === 'Employee' && booking.bookedById !== user.id) {
+      return res.status(403).json({ error: 'Forbidden: Cannot reschedule another user\'s booking' });
+    }
+
+    // Run overlap check excluding this current booking
+    const updated = await prisma.$transaction(async (tx) => {
+      const overlappingBooking = await tx.booking.findFirst({
+        where: {
+          assetId: booking.assetId,
+          status: { in: activeBookingStatuses },
+          id: { not: id }, // Exclude current booking
+          AND: [
+            { startTime: { lt: end } },
+            { endTime: { gt: start } }
+          ]
+        }
+      });
+
+      if (overlappingBooking) {
+        throw new Error('Booking conflict: The asset is already booked for this time slot.');
+      }
+
+      // If rescheduled by employee, status goes back to Pending. If Admin/Dept Head, keep Approved or Pending.
+      const newStatus = (user.role === 'Admin' || user.role === 'Department Head') ? 'Approved' : 'Pending';
+
+      return await tx.booking.update({
+        where: { id },
+        data: {
+          startTime: start,
+          endTime: end,
+          status: newStatus,
+          approvedById: newStatus === 'Approved' ? user.id : null
+        }
+      });
+    }, {
+      isolationLevel: 'Serializable'
+    });
+
+    await logActivity(user.id, 'booking.rescheduled', 'Booking', id, { startTime, endTime });
+    res.json(updated);
+  } catch (error: any) {
+    if (error.message && error.message.includes('Booking conflict')) {
+      return res.status(409).json({ error: error.message });
+    }
+    console.error('Error rescheduling booking:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
