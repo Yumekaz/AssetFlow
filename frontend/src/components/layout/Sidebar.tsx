@@ -1,10 +1,10 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Box, Calendar, Wrench, ShieldCheck, Settings, Users } from 'lucide-react';
+import { LayoutDashboard, Box, Calendar, Wrench, ShieldCheck, Settings, Users, LogOut } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const Sidebar: React.FC = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const initials = user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U';
 
   const navItems = [
@@ -70,7 +70,7 @@ export const Sidebar: React.FC = () => {
             <span className="font-medium tracking-wide">Settings</span>
         </NavLink>
         
-        <div className="mt-6 flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-colors cursor-pointer">
+        <div className="mt-6 flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-colors">
           <div className="w-10 h-10 rounded-full bg-brand-100 dark:bg-gradient-to-br dark:from-brand-600 dark:to-accent-600 flex items-center justify-center text-brand-700 dark:text-white font-bold text-sm shadow-inner">
             {initials}
           </div>
@@ -78,6 +78,13 @@ export const Sidebar: React.FC = () => {
             <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{user?.name || 'User'}</p>
             <p className="text-xs text-brand-600 dark:text-brand-400 truncate">{user?.role || 'Employee'}</p>
           </div>
+          <button 
+            onClick={logout}
+            className="text-slate-400 hover:text-rose-500 transition-colors focus:outline-none cursor-pointer p-1"
+            title="Log Out"
+          >
+            <LogOut size={18} />
+          </button>
         </div>
       </div>
     </aside>
