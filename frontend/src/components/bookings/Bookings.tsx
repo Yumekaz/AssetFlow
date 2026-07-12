@@ -138,7 +138,15 @@ export const Bookings: React.FC = () => {
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-1 text-sm text-slate-600 dark:text-white/60">
                         <div className="flex items-center gap-1.5"><Clock size={14} className="text-brand-500" /> {formatDate(booking.startTime)}</div>
-                        <div className="flex items-center gap-1.5"><div className="w-3.5 flex justify-center text-slate-300 dark:text-white/20">↳</div> {formatDate(booking.endTime)}</div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-3.5 flex justify-center text-slate-300 dark:text-white/20">↳</div> 
+                          <span className={new Date(booking.endTime) < new Date() && booking.status === 'Approved' ? 'text-red-500 font-bold' : ''}>
+                            {formatDate(booking.endTime)}
+                            {new Date(booking.endTime) < new Date() && booking.status === 'Approved' && (
+                              <span className="ml-2 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full uppercase tracking-wider">Overdue</span>
+                            )}
+                          </span>
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">

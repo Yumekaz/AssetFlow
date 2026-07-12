@@ -25,36 +25,44 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
     if (!asset) return res.status(404).json({ error: 'Asset not found' });
     if (!asset.isBookable) return res.status(400).json({ error: 'Asset is not bookable' });
 
-    // Check for overlap conflicts (only against Approved bookings)
-    const overlappingBooking = await prisma.booking.findFirst({
-      where: {
-        assetId,
-        status: 'Approved',
-        AND: [
-          { startTime: { lt: end } },
-          { endTime: { gt: start } }
-        ]
-      }
-    });
+    // Wrap in a Serializable transaction to prevent race conditions
+    const booking = await prisma.$transaction(async (tx) => {
+      // Check for overlap conflicts (only against Approved bookings)
+      const overlappingBooking = await tx.booking.findFirst({
+        where: {
+          assetId,
+          status: 'Approved',
+          AND: [
+            { startTime: { lt: end } },
+            { endTime: { gt: start } }
+          ]
+        }
+      });
 
-    if (overlappingBooking) {
-      return res.status(409).json({ error: 'Booking conflict: The asset is already booked for this time slot.' });
-    }
-
-    const booking = await prisma.booking.create({
-      data: {
-        assetId,
-        bookedById: user.id,
-        startTime: start,
-        endTime: end,
-        status: 'Pending',
+      if (overlappingBooking) {
+        throw new Error('Booking conflict: The asset is already booked for this time slot.');
       }
+
+      return await tx.booking.create({
+        data: {
+          assetId,
+          bookedById: user.id,
+          startTime: start,
+          endTime: end,
+          status: 'Pending',
+        }
+      });
+    }, {
+      isolationLevel: 'Serializable'
     });
 
     await logActivity(user.id, 'booking.created', 'Booking', booking.id, { assetId, startTime, endTime });
 
     res.status(201).json(booking);
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message.includes('Booking conflict')) {
+      return res.status(409).json({ error: error.message });
+    }
     console.error('Error creating booking:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -82,35 +90,42 @@ export const approveBooking = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    // Double check conflict just in case
-    const overlappingBooking = await prisma.booking.findFirst({
-      where: {
-        assetId: booking.assetId,
-        status: 'Approved',
-        AND: [
-          { startTime: { lt: booking.endTime } },
-          { endTime: { gt: booking.startTime } }
-        ]
-      }
-    });
+    // Wrap in Serializable transaction
+    const updatedBooking = await prisma.$transaction(async (tx) => {
+      const overlappingBooking = await tx.booking.findFirst({
+        where: {
+          assetId: booking.assetId,
+          status: 'Approved',
+          AND: [
+            { startTime: { lt: booking.endTime } },
+            { endTime: { gt: booking.startTime } }
+          ]
+        }
+      });
 
-    if (overlappingBooking) {
-      return res.status(409).json({ error: 'Booking conflict: Time slot was taken while this was pending.' });
-    }
-
-    const updatedBooking = await prisma.booking.update({
-      where: { id },
-      data: {
-        status: 'Approved',
-        approvedById: user.id,
+      if (overlappingBooking) {
+        throw new Error('Booking conflict: Time slot was taken while this was pending.');
       }
+
+      return await tx.booking.update({
+        where: { id },
+        data: {
+          status: 'Approved',
+          approvedById: user.id,
+        }
+      });
+    }, {
+      isolationLevel: 'Serializable'
     });
 
     await logActivity(user.id, 'booking.approved', 'Booking', id);
     await sendNotification(booking.bookedById, 'Booking Confirmed', `Your booking for ${booking.asset.name} has been approved.`, 'Booking', id);
 
     res.json(updatedBooking);
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message.includes('Booking conflict')) {
+      return res.status(409).json({ error: error.message });
+    }
     console.error('Error approving booking:', error);
     res.status(500).json({ error: 'Internal server error' });
   }

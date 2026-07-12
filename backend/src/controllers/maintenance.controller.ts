@@ -90,15 +90,16 @@ export const resolveRequest = async (req: AuthRequest, res: Response) => {
         data: {
           status: 'Resolved',
           resolvedAt: new Date(),
-        }
+        },
+        include: { asset: true }
       });
 
-      // Optionally, we could check if it was allocated to someone before maintenance 
-      // but for simplicity, we just return it to Available or whatever logic.
+      const nextStatus = updatedReq.asset.currentHolderId ? 'Allocated' : 'Available';
+
       await tx.asset.update({
         where: { id: maintenance.assetId },
         data: {
-          status: 'Available' // Or could keep as 'Allocated' if still held by someone
+          status: nextStatus
         }
       });
 

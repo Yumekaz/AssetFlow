@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { sseEmitter } from '../utils/logger';
 
 export const getNotifications = async (req: AuthRequest, res: Response) => {
   try {
@@ -59,4 +60,21 @@ export const getActivityLogs = async (req: AuthRequest, res: Response) => {
     console.error('Error fetching activity logs:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
+};
+
+export const subscribeEvents = (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const onActivity = (data: any) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  sseEmitter.on('activity', onActivity);
+
+  req.on('close', () => {
+    sseEmitter.off('activity', onActivity);
+  });
 };

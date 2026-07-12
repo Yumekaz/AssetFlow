@@ -17,7 +17,7 @@ export const allocateAsset = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Bookable assets cannot be permanently allocated' });
     }
     if (asset.status === 'Allocated') {
-      return res.status(400).json({ error: 'Asset is already allocated' });
+      return res.status(400).json({ error: 'Asset is already allocated. Please submit a transfer request instead.', code: 'ALREADY_ALLOCATED' });
     }
 
     // Transaction to update asset and create allocation record
@@ -117,6 +117,45 @@ export const getAllocations = async (req: AuthRequest, res: Response) => {
     res.json(allocations);
   } catch (error) {
     console.error('Error fetching allocations:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const requestTransfer = async (req: AuthRequest, res: Response) => {
+  try {
+    const { assetId, toEmployeeId, toDepartmentId } = req.body;
+    const user = req.user!;
+
+    if (!assetId || !toEmployeeId) {
+      return res.status(400).json({ error: 'assetId and toEmployeeId are required' });
+    }
+
+    const asset = await prisma.asset.findUnique({ where: { id: assetId } });
+    if (!asset) return res.status(404).json({ error: 'Asset not found' });
+    if (asset.status !== 'Allocated') {
+      return res.status(400).json({ error: 'Asset is not currently allocated' });
+    }
+
+    const transferRequest = await prisma.transferRequest.create({
+      data: {
+        assetId,
+        requestedById: user.id,
+        fromEmployeeId: asset.currentHolderId,
+        fromDepartmentId: asset.currentDepartmentId,
+        toEmployeeId,
+        toDepartmentId: toDepartmentId || null,
+        status: 'Requested',
+      }
+    });
+
+    if (asset.currentHolderId) {
+      await sendNotification(asset.currentHolderId, 'Transfer Requested', `A transfer has been requested for your asset ${asset.name}.`, 'TransferRequest', transferRequest.id);
+    }
+    await logActivity(user.id, 'transfer.requested', 'TransferRequest', transferRequest.id, { assetId, toEmployeeId });
+
+    res.status(201).json(transferRequest);
+  } catch (error) {
+    console.error('Error requesting transfer:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

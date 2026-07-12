@@ -1,4 +1,7 @@
 import prisma from './prisma';
+import { EventEmitter } from 'events';
+
+export const sseEmitter = new EventEmitter();
 
 export const logActivity = async (
   actorId: string,
@@ -16,6 +19,13 @@ export const logActivity = async (
         entityId,
         metadata: metadata ? JSON.stringify(metadata) : null,
       },
+    });
+    
+    // Broadcast via SSE
+    sseEmitter.emit('activity', {
+      action,
+      entityType,
+      entityId
     });
   } catch (error) {
     console.error('Failed to log activity:', error);

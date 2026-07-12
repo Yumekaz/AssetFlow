@@ -39,8 +39,25 @@ export const Dashboard: React.FC = () => {
     };
     
     fetchKPIs();
-    const interval = setInterval(fetchKPIs, 10000);
-    return () => clearInterval(interval);
+    
+    // Polling as a fallback
+    const interval = setInterval(fetchKPIs, 60000);
+
+    // Server-Sent Events for Live Updates
+    const eventSource = new EventSource('/api/notifications/events');
+    eventSource.onmessage = (event) => {
+      console.log('Received live update:', event.data);
+      // Re-fetch data instantly when a backend activity occurs
+      fetchKPIs();
+    };
+    eventSource.onerror = (err) => {
+      console.error('SSE Error:', err);
+    };
+
+    return () => {
+      clearInterval(interval);
+      eventSource.close();
+    };
   }, []);
 
   return (
