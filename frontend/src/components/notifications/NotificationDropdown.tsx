@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Check, Info, AlertCircle } from 'lucide-react';
 import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Notification {
   id: string;
@@ -35,11 +36,14 @@ const MOCK_NOTIFICATIONS: Notification[] = [
 ];
 
 export const NotificationDropdown: React.FC = () => {
+  const { token } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!token) return;
+
     const fetchNotifications = async () => {
       try {
         const res = await axios.get('/api/notifications');
@@ -58,7 +62,7 @@ export const NotificationDropdown: React.FC = () => {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 60000);
 
-    const eventSource = new EventSource('/api/notifications/events');
+    const eventSource = new EventSource(`/api/notifications/events?token=${encodeURIComponent(token)}`);
     eventSource.onmessage = (event) => {
       console.log('Live notification event received:', event.data);
       fetchNotifications();
@@ -68,7 +72,7 @@ export const NotificationDropdown: React.FC = () => {
       clearInterval(interval);
       eventSource.close();
     };
-  }, []);
+  }, [token]);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 

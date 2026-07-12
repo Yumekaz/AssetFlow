@@ -37,6 +37,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      response => response,
+      error => {
+        const status = error.response?.status;
+        if ((status === 401 || status === 403) && localStorage.getItem('token')) {
+          setToken(null);
+          setUser(null);
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          delete axios.defaults.headers.common['Authorization'];
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    return () => axios.interceptors.response.eject(interceptor);
+  }, []);
+
   const login = (newToken: string, newUser: User) => {
     setToken(newToken);
     setUser(newUser);
